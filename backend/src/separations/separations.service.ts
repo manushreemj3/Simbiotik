@@ -142,20 +142,27 @@ export class SeparationsService {
     return emp;
   }
 
-  private async filterForUser(separations: any[], user: { role?: string; employeeId?: string; email?: string }) {
+  private async filterForUser(separations: any[], user: { role?: string; employeeId?: string; email?: string; name?: string }) {
     const role = String(user.role || 'employee').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
     if (['admin', 'hr_manager', 'ca'].includes(role)) return separations;
 
-    if (role === 'reporting_manager' || role === 'manager') {
-      const directReports = await this.employeeModel
-        .find({
-          supervisor: user.employeeId,
-          status: { $ne: 'Inactive' },
-        })
-        .select('employeeId')
-        .lean()
-        .exec();
-      const directReportIds = new Set(directReports.map((emp) => String(emp.employeeId || '').toUpperCase()));
+    if (['reporting_manager', 'manager', 'project_manager'].includes(role)) {
+      const allEmps = await this.employeeModel.find({ status: { $ne: 'Inactive' } }).select('employeeId supervisor').lean().exec();
+      
+      const eId = (user.employeeId || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+      
+      const directReportIds = new Set(
+        allEmps
+          .filter(e => {
+            if (!e.supervisor) return false;
+            const sup = String(e.supervisor).toLowerCase().trim();
+            if (eId && sup === eId) return true;
+            if (uName && (sup === uName || uName.includes(sup) || sup.includes(uName))) return true;
+            return false;
+          })
+          .map(e => String(e.employeeId || '').toUpperCase())
+      );
 
       return separations.filter((s) => {
         const isOwn = this.isOwnSeparation(s, user);
@@ -200,12 +207,12 @@ export class SeparationsService {
     }, {} as Record<string, any>);
   }
 
-  async findAll(user: { role?: string; employeeId?: string; email?: string }) {
+  async findAll(user: { role?: string; employeeId?: string; email?: string; name?: string }) {
     const all = mapDocs(await this.model.find().sort({ createdAt: -1 }).exec());
     return this.filterForUser(all, user);
   }
 
-  async findOne(id: string, user: { role?: string; employeeId?: string; email?: string }) {
+  async findOne(id: string, user: { role?: string; employeeId?: string; email?: string; name?: string }) {
     const sep = await this.model.findById(id).exec();
     if (!sep) throw new NotFoundException('Separation request not found');
     const mapped = mapDoc(sep);

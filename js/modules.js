@@ -87,9 +87,9 @@ const Modules = (() => {
     'employees.edit': ['admin', 'hr_manager'],
     'performance.manage': ['admin', 'hr_manager', 'reporting_manager'],
     'separation.submit': ['admin', 'hr_manager', 'employee', 'project_manager', 'reporting_manager'],
-    'separation.approval': ['admin', 'hr_manager', 'reporting_manager'],
-    'separation.manager_review': ['admin', 'hr_manager', 'reporting_manager'],
-    'separation.exit_manage': ['admin', 'hr_manager', 'reporting_manager', 'ca'],
+    'separation.approval': ['admin', 'hr_manager', 'reporting_manager', 'project_manager'],
+    'separation.manager_review': ['admin', 'hr_manager', 'reporting_manager', 'project_manager'],
+    'separation.exit_manage': ['admin', 'hr_manager', 'reporting_manager', 'ca', 'project_manager'],
     'separation.analytics': ['admin', 'hr_manager']
   };
 
@@ -205,63 +205,78 @@ const Modules = (() => {
 
   function getWeeklyAttendanceData(employees, dashboard) {
     const activeCount = employees.filter(e => e.status !== 'Inactive').length;
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const serverWeekly = dashboard?.weeklyAttendance;
-    if (Array.isArray(serverWeekly?.present) && serverWeekly.present.length) {
-      const present = serverWeekly.present.map(value => Number(value) || 0);
-      return {
-        labels: serverWeekly.labels?.length ? serverWeekly.labels : labels,
-        dates: serverWeekly.dates || [],
-        present,
-        total: Number(serverWeekly.total) || activeCount,
-        heights: scaleChartHeights(present)
-      };
-    }
-
+    let labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const monday = new Date(today);
     const day = monday.getDay();
     monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
-    const activeIds = new Set(employees
-      .filter(e => e.status !== 'Inactive')
-      .map(e => String(e.employeeId || '').toUpperCase().trim())
-      .filter(Boolean));
-    const leaves = Store.getLeaves().filter(l => l.status === 'Approved');
-    const dates = labels.map((_, i) => {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      return date.toISOString().split('T')[0];
-    });
-    const present = dates.map(date => {
-      const onLeaveForDay = new Set(leaves
-        .filter(l => l.fromDate <= date && l.toDate >= date)
-        .map(l => String(l.employeeId || '').toUpperCase().trim())
-        .filter(id => id && activeIds.has(id)));
-      return Math.max(0, activeCount - onLeaveForDay.size);
-    });
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const formatDayMonth = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const formatFullDate = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const dateRange = `${formatDayMonth(monday)} - ${formatFullDate(sunday)}`;
+    
+    const serverWeekly = dashboard?.weeklyAttendance;
+    
+    let present = [];
+    let dates = [];
+    let total = activeCount;
+    
+    if (Array.isArray(serverWeekly?.present) && serverWeekly.present.length) {
+      present = serverWeekly.present.map(value => Number(value) || 0);
+      labels = serverWeekly.labels?.length ? serverWeekly.labels : labels;
+      dates = serverWeekly.dates || [];
+      total = Number(serverWeekly.total) || activeCount;
+    } else {
+      const activeIds = new Set(employees
+        .filter(e => e.status !== 'Inactive')
+        .map(e => String(e.employeeId || '').toUpperCase().trim())
+        .filter(Boolean));
+      const leaves = Store.getLeaves().filter(l => l.status === 'Approved');
+      dates = labels.map((_, i) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      });
+      present = dates.map(date => {
+        const onLeaveForDay = new Set(leaves
+          .filter(l => l.fromDate <= date && l.toDate >= date)
+          .map(l => String(l.employeeId || '').toUpperCase().trim())
+          .filter(id => id && activeIds.has(id)));
+        return Math.max(0, activeCount - onLeaveForDay.size);
+      });
+    }
+
+    const maxVal = Math.max(...present, 16);
+    const chartMax = Math.ceil(maxVal / 4) * 4;
+
     return {
       labels,
       dates,
       present,
-      total: activeCount,
-      heights: scaleChartHeights(present)
+      total,
+      heights: present.map(v => Math.round((v / chartMax) * 100)),
+      dateRange,
+      chartMax
     };
   }
 
   function scaleChartHeights(values) {
     const max = Math.max(...values, 0);
-    const min = Math.min(...values, max);
     if (max <= 0) return values.map(() => 0);
-    if (max === min) return values.map(() => 82);
-    const floor = 22;
-    const range = max - min;
-    return values.map(value => Math.round(floor + ((value - min) / range) * (100 - floor)));
+    return values.map(value => Math.round((value / max) * 100));
   }
 
   function getTodayOnLeave(employees, dashboard) {
     if (Array.isArray(dashboard?.onLeaveEmployees)) return dashboard.onLeaveEmployees;
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
     const employeeById = new Map(employees.map(e => [String(e.employeeId || '').toUpperCase().trim(), e]));
     const byEmployee = new Map();
     Store.getLeaves()
@@ -496,7 +511,8 @@ ${entries.map(([key, label]) => {
   }
 
   function renderEmployeeTimesheetsOverview({ title, hint, rows, showDepartment }) {
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
     const list = Array.isArray(rows) ? rows : [];
     const counts = {
       working: list.filter((r) => r.status === 'Working').length,
@@ -571,7 +587,8 @@ ${entries.map(([key, label]) => {
   }
 
   function renderTimesheetPersonal(user) {
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
     const timesheet = Store.getTimesheet();
     
     if (!timesheet) {
@@ -776,21 +793,50 @@ ${entries.map(([key, label]) => {
         </div>
       </div>
       <div class="dashboard-panels">
-        <div class="panel">
-          <div class="panel-header"><h3>Weekly Attendance</h3></div>
+        <div class="panel weekly-chart-panel">
+          <div class="panel-header weekly-chart-header">
+            <h3>Weekly Attendance</h3>
+          </div>
           <div class="panel-body">
-            <div class="chart-bars chart-bars-tall">
-              ${weekly.labels.map((label, i) => `
-                <div class="chart-bar-wrap">
-                  <span class="chart-bar-value">${weekly.present[i]}</span>
-                  <div class="chart-bar-track">
-                    <div class="chart-bar" style="--bar-height:${weekly.heights[i]}%"></div>
-                  </div>
-                  <span>${label}</span>
-                </div>
-              `).join('')}
+            <div class="weekly-chart-date-range">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>${weekly.dateRange}</span>
             </div>
-            <p class="form-hint" style="margin-top:1rem">Present employees this week (of ${weekly.total} active)</p>
+            
+            <div class="weekly-chart-container">
+              <div class="weekly-chart-y-axis">
+                <div class="weekly-chart-y-label">${weekly.chartMax}</div>
+                <div class="weekly-chart-y-label">${Math.round(weekly.chartMax * 0.75)}</div>
+                <div class="weekly-chart-y-label">${Math.round(weekly.chartMax * 0.5)}</div>
+                <div class="weekly-chart-y-label">${Math.round(weekly.chartMax * 0.25)}</div>
+                <div class="weekly-chart-y-label">0</div>
+              </div>
+              <div class="weekly-chart-content">
+                <div class="weekly-chart-grid">
+                  <div class="weekly-chart-grid-line"></div>
+                  <div class="weekly-chart-grid-line"></div>
+                  <div class="weekly-chart-grid-line"></div>
+                  <div class="weekly-chart-grid-line"></div>
+                  <div class="weekly-chart-grid-line bottom-line"></div>
+                </div>
+                <div class="weekly-chart-bars">
+                  ${weekly.labels.map((label, i) => {
+                    const todayStr = new Date();
+                    const todayIso = `${todayStr.getFullYear()}-${String(todayStr.getMonth()+1).padStart(2,'0')}-${String(todayStr.getDate()).padStart(2,'0')}`;
+                    const isToday = weekly.dates[i] === todayIso;
+                    return `
+                    <div class="weekly-chart-bar-wrap ${isToday ? 'is-today' : ''}">
+                      ${isToday ? '<div class="today-badge">Today</div>' : ''}
+                      <span class="weekly-chart-bar-value">${weekly.present[i]}</span>
+                      <div class="weekly-chart-bar" style="height:${weekly.heights[i]}%"></div>
+                      <span class="weekly-chart-x-label">${label}</span>
+                    </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+            <p class="form-hint" style="margin-top:1.5rem">Present employees this week (of \${weekly.total} active)</p>
           </div>
         </div>
         <div class="dashboard-side-panels">
@@ -1407,14 +1453,17 @@ ${['Approved', 'In_Exit', 'Completed'].includes(s.status)
         </div>
       </div>
       <div class="panel">
-        <div class="panel-header">
-          <h3>Employee Records</h3>
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <h3 style="margin: 0;">Employee Records</h3>
+            <input type="search" id="search-employee" class="form-input" placeholder="Search employee..." style="width: 250px;" />
+          </div>
           ${canOnboard ? '<button class="btn btn-primary btn-sm" id="btn-onboard" type="button">+ Onboard Employee</button>' : ''}
         </div>
         <div class="panel-body" style="padding:0">
           <table class="data-table">
             <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Join Date</th><th>BGV</th><th>Status</th>${canView ? '<th>Actions</th>' : ''}</tr></thead>
-            <tbody>
+            <tbody id="employee-management-table">
               ${employees.length === 0 ? `<tr><td colspan="${colSpan}"><div class="empty-state"><p>No employees yet</p></div></td></tr>` : employees.map(e => `
                 <tr>
                   <td><strong>${e.name}</strong></td>

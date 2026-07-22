@@ -308,7 +308,8 @@ const Store = (() => {
   }
 
   function canUserApproveSeparation(user, sep) {
-    const role = (user?.role || '').toLowerCase() === 'manager' ? 'reporting_manager' : (user?.role || '').toLowerCase();
+    let role = (user?.role || '').toLowerCase();
+    if (role === 'manager' || role === 'project_manager') role = 'reporting_manager';
     if (!sep || ['Withdrawn', 'Rejected', 'Completed'].includes(sep.status)) return false;
     if (role !== 'admin') {
       if (role === 'reporting_manager' && sep.managerReview?.status !== 'Approved') return false;
@@ -369,7 +370,8 @@ const Store = (() => {
 ];
 
   function canRoleUpdateExitStep(user, stepKey) {
-    const role = (user?.role || '').toLowerCase() === 'manager' ? 'reporting_manager' : (user?.role || '').toLowerCase();
+    let role = (user?.role || '').toLowerCase();
+    if (role === 'manager' || role === 'project_manager') role = 'reporting_manager';
     return (EXIT_STEP_ROLES[stepKey] || []).includes(role);
   }
 

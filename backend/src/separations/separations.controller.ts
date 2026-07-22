@@ -102,7 +102,7 @@ export class SeparationsController {
 
   @Patch(':id/manager-review')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'hr_manager', 'reporting_manager')
+  @Roles('admin', 'hr_manager', 'reporting_manager', 'manager', 'project_manager')
   @ApiOperation({ summary: 'Manager review with optional retention offer' })
   managerReview(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     return this.separations.managerReview(id, body, req.user);
@@ -116,7 +116,7 @@ export class SeparationsController {
 
   @Patch(':id/approve')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'hr_manager', 'reporting_manager')
+  @Roles('admin', 'hr_manager', 'reporting_manager', 'manager', 'project_manager')
   @ApiOperation({ summary: 'Role-based sequential separation approval' })
   approveStep(@Param('id') id: string, @Body() body: { status: string }, @Req() req: any) {
     return this.separations.approveStep(id, req.user?.role, body.status);

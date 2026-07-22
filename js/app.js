@@ -471,6 +471,9 @@ const App = (() => {
       API.getTodayTimesheet().then((timesheet) => {
         if (timesheet) Store.setTimesheet(timesheet);
       }),
+      API.getDashboard().then((dashboard) => {
+        if (dashboard) Store.setDashboard(dashboard);
+      }),
     ];
 
     if (['reporting_manager', 'admin', 'hr_manager'].includes(normalizedRole)) {
@@ -3664,6 +3667,16 @@ const App = (() => {
       searchTimesheetInput.addEventListener('input', () => {
         const query = searchTimesheetInput.value.toLowerCase().trim();
         document.querySelectorAll('#timesheet-management-table tr').forEach((row) => {
+          row.style.display = !query || row.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+      });
+    }
+
+    const searchEmployeeInput = document.getElementById('search-employee');
+    if (searchEmployeeInput) {
+      searchEmployeeInput.addEventListener('input', () => {
+        const query = searchEmployeeInput.value.toLowerCase().trim();
+        document.querySelectorAll('#employee-management-table tr').forEach((row) => {
           row.style.display = !query || row.textContent.toLowerCase().includes(query) ? '' : 'none';
         });
       });

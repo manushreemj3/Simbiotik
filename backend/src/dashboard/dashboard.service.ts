@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Employee } from '../employees/schemas/employee.schema';
 import { Leave } from '../leaves/schemas/leave.schema';
 import { Separation } from '../separations/schemas/separation.schema';
+import { Timesheet } from '../timesheets/schemas/timesheet.schema';
 
 type DashboardLeave = Pick<Leave, 'employeeId' | 'employeeName' | 'leaveType' | 'fromDate' | 'toDate'>;
 
@@ -26,6 +27,7 @@ export class DashboardService {
     @InjectModel(Employee.name) private employeeModel: Model<Employee>,
     @InjectModel(Leave.name) private leaveModel: Model<Leave>,
     @InjectModel(Separation.name) private separationModel: Model<Separation>,
+    @InjectModel(Timesheet.name) private timesheetModel: Model<Timesheet>,
   ) {}
 
   private parseDob(dob?: string) {
@@ -105,33 +107,37 @@ export class DashboardService {
     return Array.from({ length: 7 }, (_, index) => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + index);
-      return date.toISOString().split('T')[0];
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     });
   }
 
   private scaleChartHeights(values: number[]) {
     const max = Math.max(...values, 0);
-    const min = Math.min(...values, max);
     if (max <= 0) return values.map(() => 0);
-    if (max === min) return values.map(() => 82);
-
-    const floor = 22;
-    const range = max - min;
-    return values.map((value) => Math.round(floor + ((value - min) / range) * (100 - floor)));
+    return values.map((value) => Math.round((value / max) * 100));
   }
 
-  private getWeeklyAttendance(activeCount: number, leaves: DashboardLeave[], activeEmployeeIds: Set<string>) {
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const dates = this.getWeekDates();
+  private getWeeklyAttendance(activeCount: number, timesheets: any[], weekDates: string[], today: string, activeEmployeeIds: Set<string>) {
+    const allLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const todayIndex = weekDates.indexOf(today);
+    const clipIndex = todayIndex !== -1 ? todayIndex + 1 : 7;
+    
+    const dates = weekDates.slice(0, clipIndex);
+    const labels = allLabels.slice(0, clipIndex);
+    
     const present = dates.map((date) => {
-      const onLeaveForDay = new Set(
-        leaves
-          .filter((leave) => leave.fromDate <= date && leave.toDate >= date)
-          .map((leave) => String(leave.employeeId || '').toUpperCase().trim())
-          .filter((employeeId) => employeeId && activeEmployeeIds.has(employeeId)),
+      const tsForDate = timesheets.filter((ts) => ts.date === date);
+      const uniqueEmp = new Set(
+        tsForDate
+          .map((ts) => String(ts.employeeId || '').toUpperCase().trim())
+          .filter(id => id && activeEmployeeIds.has(id))
       );
-      return Math.max(0, activeCount - onLeaveForDay.size);
+      return uniqueEmp.size;
     });
+
     return {
       labels,
       dates,
@@ -143,7 +149,8 @@ export class DashboardService {
 
   async getStats() {
     const employees = await this.employeeModel.find().exec();
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
     const weekDates = this.getWeekDates();
     const activeEmployees = employees.filter((employee) => employee.status !== 'Inactive');
     const totalEmployees = activeEmployees.length;
@@ -154,7 +161,7 @@ export class DashboardService {
       activeEmployees.map((employee) => [String(employee.employeeId || '').toUpperCase().trim(), employee]),
     );
 
-    const [pendingLeaves, activeApprovedLeaves, pendingSeparations, inExitSeparations] = await Promise.all([
+    const [pendingLeaves, activeApprovedLeaves, pendingSeparations, inExitSeparations, weekTimesheets] = await Promise.all([
       this.leaveModel.countDocuments({ status: 'Pending' }),
       this.leaveModel.find({
         status: 'Approved',
@@ -163,6 +170,10 @@ export class DashboardService {
       }).lean().exec(),
       this.separationModel.countDocuments({ status: { $in: ['Pending', 'Manager_Review', 'Retention'] } }),
       this.separationModel.countDocuments({ status: 'In_Exit' }),
+      this.timesheetModel.find({
+        date: { $in: weekDates },
+        status: { $ne: 'Not Punched In' },
+      }).lean().exec(),
     ]);
 
     const todayLeaveByEmployee = new Map<string, any>();
@@ -184,8 +195,15 @@ export class DashboardService {
 
     const onLeaveEmployees = [...todayLeaveByEmployee.values()].sort((a, b) => a.name.localeCompare(b.name));
     const onLeave = onLeaveEmployees.length;
-    const present = Math.max(0, totalEmployees - onLeave);
-    const absent = Math.max(0, totalEmployees - present);
+    
+    const todayTimesheets = weekTimesheets.filter(ts => ts.date === today);
+    const presentIds = new Set(
+      todayTimesheets
+        .map(ts => String(ts.employeeId || '').toUpperCase().trim())
+        .filter(id => id && activeEmployeeIds.has(id))
+    );
+    const present = presentIds.size;
+    const absent = Math.max(0, totalEmployees - present - onLeave);
 
 
     const inactiveCount = employees.filter((e) => e.status === 'Inactive').length;
@@ -206,7 +224,7 @@ export class DashboardService {
         absent,
         onLeave,
       },
-      weeklyAttendance: this.getWeeklyAttendance(totalEmployees, activeApprovedLeaves, activeEmployeeIds),
+      weeklyAttendance: this.getWeeklyAttendance(totalEmployees, weekTimesheets, weekDates, today, activeEmployeeIds),
       upcomingBirthdays: this.getUpcomingBirthdays(employees),
       nextHoliday: this.getNextHoliday(),
     };

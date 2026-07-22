@@ -44,7 +44,7 @@ export function getActiveSeparationSteps(approvals: unknown) {
 export function roleToSeparationApprovalKey(role: string): SeparationApprovalKey | null {
   if (role === 'admin') return 'admin';
   if (role === 'hr_manager') return 'hr';
-  if (role === 'reporting_manager' || role === 'manager') return 'reporting_manager';
+  if (role === 'reporting_manager' || role === 'manager' || role === 'project_manager') return 'reporting_manager';
   return null;
 }
 
