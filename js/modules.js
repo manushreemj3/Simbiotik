@@ -82,10 +82,6 @@ const Modules = (() => {
     'employees.edit': ['admin', 'hr_manager', 'hr'],
     'performance.manage': ['admin', 'hr_manager', 'hr', 'reporting_manager'],
     'grievance.manage': ['admin', 'hr_manager', 'hr'],
-    'employees.onboard': ['hr_manager'],
-    'employees.view': ['admin', 'hr_manager', 'ca'],
-    'employees.edit': ['admin', 'hr_manager'],
-    'performance.manage': ['admin', 'hr_manager', 'reporting_manager'],
     'separation.submit': ['admin', 'hr_manager', 'employee', 'project_manager', 'reporting_manager'],
     'separation.approval': ['admin', 'hr_manager', 'reporting_manager', 'project_manager'],
     'separation.manager_review': ['admin', 'hr_manager', 'reporting_manager', 'project_manager'],
@@ -709,6 +705,10 @@ ${entries.map(([key, label]) => {
       { id: 'approvals', label: 'Approvals', locked: false },
       { id: 'exit', label: 'Exit Workflow', locked: false },
       { id: 'analytics', label: 'Attrition Analytics', locked: false }
+    ],
+    performance: [
+      { id: 'probation', label: 'Probation', locked: false },
+      { id: 'appraisal', label: 'Appraisal', locked: false }
     ]
   };
 
@@ -1695,7 +1695,7 @@ ${['Approved', 'In_Exit', 'Completed'].includes(s.status)
     const safeSp = subPage ? subPage : getSafeSubPage(actualPage, user);
     const sp = subTabLocked(actualPage, safeSp, user) ? getSafeSubPage(actualPage, user) : safeSp;
     // Store the resolved sub-page so navigate() keeps it
-    const subTabs = ['leave', 'payroll', 'recruitment', 'separation', 'timesheet'].includes(actualPage)
+    const subTabs = ['leave', 'payroll', 'recruitment', 'separation', 'timesheet', 'performance'].includes(actualPage)
       ? renderSubTabs(actualPage, user, sp)
       : '';
 
