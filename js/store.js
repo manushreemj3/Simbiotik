@@ -352,9 +352,9 @@ const Store = (() => {
     it_clearance: ['hr_manager', 'admin'],
     hr_clearance: ['hr_manager', 'admin'],
     admin_clearance: ['hr_manager', 'admin'],
-    finance_clearance: ['hr_manager', 'admin'],
+    finance_clearance: ['hr_manager', 'admin', 'ca'],
     exit_interview: ['hr_manager', 'admin'],
-    final_settlement: ['hr_manager', 'admin'],
+    final_settlement: ['hr_manager', 'admin', 'ca'],
     deactivation: ['hr_manager', 'admin']
   };
   const EXIT_STEP_ORDER = [

@@ -65,8 +65,11 @@ const Modules = (() => {
       { id: 'performance', label: 'Performance', icon: 'performance' }
     ],
     ca: [
+      { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+      { id: 'timesheet', label: 'Timesheet', icon: 'timesheet' },
       { id: 'employees', label: 'Employees', icon: 'employees' },
-      { id: 'payroll', label: 'Payroll', icon: 'payroll' }
+      { id: 'payroll', label: 'Payroll', icon: 'payroll' },
+      { id: 'separation', label: 'Separation', icon: 'separation' }
     ]
   };
 
@@ -836,7 +839,6 @@ ${entries.map(([key, label]) => {
                 </div>
               </div>
             </div>
-            <p class="form-hint" style="margin-top:1.5rem">Present employees this week (of \${weekly.total} active)</p>
           </div>
         </div>
         <div class="dashboard-side-panels">

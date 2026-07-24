@@ -21,7 +21,7 @@ export class TimesheetsController {
   }
 
   @Get('today')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Get today timesheet with status and calculations' })
   async getTodayTimesheet(@Req() req: any) {
     const timesheet = await this.timesheets.getOrCreateTodayTimesheet(req.user);
@@ -29,7 +29,7 @@ export class TimesheetsController {
   }
 
   @Get('missed-punch-out')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Check for missed punch-out from previous day' })
   async checkMissedPunchOut(@Req() req: any) {
     const missed = await this.timesheets.checkMissedPunchOut(req.user.employeeId);
@@ -45,7 +45,7 @@ export class TimesheetsController {
   }
 
   @Post('punch-in')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Punch in for the day' })
   async punchIn(@Req() req: any) {
     const timesheet = await this.timesheets.punchIn(req.user);
@@ -53,7 +53,7 @@ export class TimesheetsController {
   }
 
   @Post('punch-out')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Punch out for the day' })
   async punchOut(@Req() req: any) {
     const timesheet = await this.timesheets.punchOut(req.user);
@@ -61,7 +61,7 @@ export class TimesheetsController {
   }
 
   @Post('activities')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Add activity to todays timesheet' })
   async addActivity(@Req() req: any, @Body() dto: AddActivityDto) {
     const timesheet = await this.timesheets.addActivity(req.user, dto);
@@ -69,7 +69,7 @@ export class TimesheetsController {
   }
 
   @Patch('activities/:index')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Edit activity in todays timesheet' })
   async editActivity(
     @Req() req: any,
@@ -83,7 +83,7 @@ export class TimesheetsController {
   }
 
   @Patch('activities/:index/delete')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Delete activity from todays timesheet' })
   async deleteActivity(@Req() req: any, @Param('index') indexStr: string) {
     const index = parseInt(indexStr, 10);
@@ -93,7 +93,7 @@ export class TimesheetsController {
   }
 
   @Patch('resolve-missed-punch-out/:timesheetId')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Resolve missed punch-out from previous day' })
   async resolveMissedPunchOut(
     @Req() req: any,
@@ -105,7 +105,7 @@ export class TimesheetsController {
   }
 
   @Post('submit')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Submit today timesheet' })
   async submitTimesheet(@Req() req: any) {
     const timesheet = await this.timesheets.submitTimesheet(req.user);
@@ -113,7 +113,7 @@ export class TimesheetsController {
   }
 
   @Get('history')
-  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin')
+  @Roles('employee', 'manager', 'project_manager', 'reporting_manager', 'hr', 'admin', 'ca')
   @ApiOperation({ summary: 'Get my timesheet history' })
   async getMyHistory(@Req() req: any, @Query('limit') limitStr?: string) {
     const limit = limitStr ? parseInt(limitStr, 10) : 30;
